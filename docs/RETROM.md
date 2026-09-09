@@ -39,6 +39,8 @@ access these on the Emscripten Module, including after memory growth.
 Compilation fixes `SOURCE_DATE_EPOCH` to `1771589293`, the pinned Flycast input
 commit's timestamp, so RetroArch's embedded build date is deterministic. A cache
 created before this setting must be cleaned before a reproducibility comparison.
+RetroArch's embedded `GIT_VERSION` is the complete pinned 40-character commit;
+it must not depend on Git's repository-size-dependent automatic abbreviation.
 
 The current Retrom target is single-file Dreamcast CHD, WebGL2, no pthreads.
 The frontend uses `/` as its content/system directory, so the host supplies

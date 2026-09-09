@@ -239,12 +239,13 @@ diff --git a/core/hw/aica/aica.cpp b/core/hw/aica/aica.cpp
 index 18b440f..01470f4 100644
 --- a/core/hw/aica/aica.cpp
 +++ b/core/hw/aica/aica.cpp
-@@ -7,6 +7,9 @@
+@@ -7,6 +7,10 @@
  #include "hw/sh4/sh4_sched.h"
  #include "hw/arm7/arm7.h"
  #include "hw/arm7/arm_mem.h"
 +#ifdef __EMSCRIPTEN__
 +#include <emscripten.h>
++extern double g_fly_rp[10];
 +#endif
  
  namespace aica
@@ -256,7 +257,7 @@ index 18b440f..01470f4 100644
 +#ifdef __EMSCRIPTEN__
 +	// Render-phase timer [5]: ARM7 interpreter slice (fires at 44.1kHz —
 +	// get_now pairs add ~1-2% skew; diagnostic-grade, not verdict-grade).
-+	extern double g_fly_rp[10];
++	using ::g_fly_rp;
 +	double fly_t0 = emscripten_get_now();
  	arm::run(1);
 +	g_fly_rp[5] += emscripten_get_now() - fly_t0;
@@ -271,7 +272,7 @@ index 18b440f..01470f4 100644
  void timeStep()
  {
 +#ifdef __EMSCRIPTEN__
-+	extern double g_fly_rp[10];
++	using ::g_fly_rp;
 +	double fly_t0 = emscripten_get_now();
 +#endif
  	for (auto& timer : timers)

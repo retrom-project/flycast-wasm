@@ -1,0 +1,22 @@
+name: Retrom Core Quality
+on:
+  pull_request:
+    branches: [retrom/1.0]
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - run: python3 -B -m unittest discover -s .github/rpg-runtime -p 'test_*.py'
+      - name: Build and audit the core
+        run: |
+          mkdir "$RUNNER_TEMP/flycast-candidate"
+          bash .github/rpg-runtime/build-candidate.sh "$RUNNER_TEMP/flycast-candidate"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flycast-candidate
+          path: ${{ runner.temp }}/flycast-candidate

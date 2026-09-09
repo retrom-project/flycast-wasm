@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "forkRepository": "https://github.com/retrom-project/flycast-wasm",
+  "defaultBranch": "retrom/1.0",
+  "upstreamMirrorBranch": "main",
+  "upstreams": [
+    {
+      "role": "core",
+      "repository": "https://github.com/nasomers/flycast-wasm",
+      "refType": "TAG",
+      "ref": "v1.0",
+      "commit": "16e9c7b4b7065a4bd42e7490e8aab3e9283d5415"
+    }
+  ],
+  "releaseTagPattern": "^retrom-core-1\\.0-r[1-9][0-9]*(-rc\\.[1-9][0-9]*)?$",
+  "adapterAbi": "emulatorjs-flycast-state-v1",
+  "releaseAssets": [
+    "flycast-wasm.data",
+    "flycast.json",
+    "LICENSE",
+    "rpg-runtime-release.json"
+  ]
+}

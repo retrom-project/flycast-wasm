@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd /work
+# Fixed flyinghead/flycast input commit time; never embed the build wall clock.
+export SOURCE_DATE_EPOCH=1771589293
 export SOURCE_DIR=/work/.cache/flycast
 export BUILD_DIR=/work/.cache/flycast/build-wasm-prod
 export EJS_RA=/work/.cache/retroarch

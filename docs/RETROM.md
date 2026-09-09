@@ -36,6 +36,10 @@ WebGL ES version queries and file path helpers needed at link time. The link
 exports `HEAPU8`, `HEAPU32`, and `HEAP16`: the upstream JIT and audio callback
 access these on the Emscripten Module, including after memory growth.
 
+Compilation fixes `SOURCE_DATE_EPOCH` to `1771589293`, the pinned Flycast input
+commit's timestamp, so RetroArch's embedded build date is deterministic. A cache
+created before this setting must be cleaned before a reproducibility comparison.
+
 The current Retrom target is single-file Dreamcast CHD, WebGL2, no pthreads.
 The frontend uses `/` as its content/system directory, so the host supplies
 `/dc/dc_boot.bin` and `/dc/dc_flash.bin` as external files. Flash contains mutable

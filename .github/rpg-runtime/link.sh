@@ -30,8 +30,8 @@ emcc -O3 -flto \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s ALLOW_TABLE_GROWTH \
   -s ASYNCIFY=1 \
+  -s ASYNCIFY_IMPORTS=retrom_flycast_range_read_js \
   -s ASYNCIFY_STACK_SIZE=65536 \
-  -s 'ASYNCIFY_REMOVE=["Sh4Interpreter::*","i0*","i1*","addrspace::*","mmu_*","aica::*","Pvr*","pvr*","*ReadMem*","*WriteMem*","sh4_sched_tick*","*TA_*Param*"]' \
   -s EXIT_RUNTIME=0 \
   -s FORCE_FILESYSTEM=1 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=1 \
@@ -62,5 +62,5 @@ emcc -O3 -flto \
   "$BUILD_DIR/core/deps/libchdr/deps/zlib-1.3.1/libz.a" \
   "$BUILD_DIR/core/deps/xxHash/cmake_unofficial/libxxhash.a" \
   -o flycast_libretro.js \
-  --pre-js "$EJS_RA/emscripten/pre.js"
-
+  --pre-js "$EJS_RA/emscripten/pre.js" \
+  --pre-js "/work/.github/rpg-runtime/asyncify-hook.js"

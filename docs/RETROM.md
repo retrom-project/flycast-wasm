@@ -42,11 +42,16 @@ created before this setting must be cleaned before a reproducibility comparison.
 RetroArch's embedded `GIT_VERSION` is the complete pinned 40-character commit;
 it must not depend on Git's repository-size-dependent automatic abbreviation.
 
-The current Retrom target is single-file Dreamcast CHD, WebGL2, no pthreads.
-The frontend uses `/` as its content/system directory, so the host supplies
-`/dc/dc_boot.bin` and `/dc/dc_flash.bin` as external files. Flash contains mutable
-console settings. Windows CE/MMU games, NAOMI, Atomiswave, multi-disc switching,
-and multiplayer netplay are outside this initial target's supported scope.
+Retrom uses this core for single-file Dreamcast CHD and NAOMI, NAOMI2, and
+Atomiswave ZIP cartridges, with WebGL2 and no pthreads. The native CHD and ZIP
+readers use the same asynchronous, bounded Range bridge supplied by the runtime;
+neither format requires a complete game download before native startup. ZIP
+cartridges may still read most archive members while the arcade machine boots.
+The frontend uses `/` as its content/system directory. Dreamcast needs
+`/dc/dc_boot.bin` and `/dc/dc_flash.bin`; the arcade targets need their matching
+BIOS ZIP in `/dc/`. Flash contains mutable console settings. Windows CE/MMU
+games, multi-disc switching, and multiplayer netplay remain outside the current
+supported scope.
 
 Candidates are for PFB validation. Do not create a stable core release until
 Retrom's real review preview, product launch, standard gamepad input, bounded

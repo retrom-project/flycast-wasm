@@ -776,7 +776,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 				b.op_local_get(LOCAL_CTX);
 				b.op_local_get(LOCAL_RAM);
 				b.op_local_get(LOCAL_TMP2);
-				b.op_i32_const(0x00FFFFFF);
+				b.op_i32_const((s32)RAM_MASK);
 				b.op_i32_and();
 				b.op_i32_add();
 				b.op_i32_load(0);
@@ -787,7 +787,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 				b.op_local_get(LOCAL_TMP2);
 				b.op_i32_const(4);
 				b.op_i32_add();
-				b.op_i32_const(0x00FFFFFF);
+				b.op_i32_const((s32)RAM_MASK);
 				b.op_i32_and();
 				b.op_i32_add();
 				b.op_i32_load(0);
@@ -839,7 +839,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 			{
 				b.op_local_get(LOCAL_RAM);
 				b.op_local_get(LOCAL_TMP);
-				b.op_i32_const(0x00FFFFFF);
+				b.op_i32_const((s32)RAM_MASK);
 				b.op_i32_and();
 				b.op_i32_add();
 				switch (op.size) {
@@ -987,7 +987,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 					// ram[phys & RAM_MASK] = ctx[rs2]
 					b.op_local_get(LOCAL_RAM);
 					b.op_local_get(LOCAL_TMP2);
-					b.op_i32_const(0x00FFFFFF);
+					b.op_i32_const((s32)RAM_MASK);
 					b.op_i32_and();
 					b.op_local_tee(LOCAL_TMP2);   // TMP2 = ram offset now
 					b.op_i32_add();
@@ -1008,7 +1008,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 						extern u32 g_fly_page_gen[];
 						u32 genBase = (u32)(uintptr_t)&g_fly_page_gen[0];
 						b.op_local_get(LOCAL_TMP2);
-						b.op_i32_const(0x00FFF000);
+						b.op_i32_const((s32)(RAM_MASK & ~0xFFF));
 						b.op_i32_and();
 						b.op_i32_const(10);
 						b.op_i32_shr_u();
@@ -1112,7 +1112,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 			{
 				b.op_local_get(LOCAL_RAM);
 				b.op_local_get(LOCAL_TMP);
-				b.op_i32_const(0x00FFFFFF);
+				b.op_i32_const((s32)RAM_MASK);
 				b.op_i32_and();
 				b.op_i32_add();
 				emitLoadParamCached(b, op.rs2, cache);
@@ -1123,13 +1123,13 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 				}
 #if FLY_EMIT_GEN_BUMP
 				// g_fly_page_gen[(phys & RAM_MASK) >> 12]++ — cell byte
-				// offset collapses to (phys & 0xFFF000) >> 10. TMP still
+				// offset collapses to (phys & (RAM_MASK & ~0xFFF)) >> 10. TMP still
 				// holds phys; TMP2 is free in this arm.
 				{
 					extern u32 g_fly_page_gen[];
 					u32 genBase = (u32)(uintptr_t)&g_fly_page_gen[0];
 					b.op_local_get(LOCAL_TMP);
-					b.op_i32_const(0x00FFF000);
+					b.op_i32_const((s32)(RAM_MASK & ~0xFFF));
 					b.op_i32_and();
 					b.op_i32_const(10);
 					b.op_i32_shr_u();

@@ -2644,7 +2644,7 @@ index 9dcc6b3..ed858f6 100644
 +					u32 op = 0xFFFF;
 +					u32 phys = epc & 0x1FFFFFFF;
 +					if ((phys >> 26) == 3) { // main RAM (area 3)
-+						op = *(u16*)&mem_b[phys & 0x00FFFFFF];
++						op = *(u16*)&mem_b[phys & RAM_MASK];
 +					}
 +					EM_ASM({
 +						window._flyLog.push('[FREEZE]   exc#' + $0

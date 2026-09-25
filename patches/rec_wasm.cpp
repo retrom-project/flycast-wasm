@@ -5155,7 +5155,7 @@ extern "C" void EMSCRIPTEN_KEEPALIVE fly_dump_first_exc_trace() {
 				window._flyLog.push('[FREEZE] SH4 instructions at faulting block (0x'
 					+ ($0>>>0).toString(16) + '):');
 			}, last_pc);
-			u32 ram_off = phys & 0x00FFFFFF;
+			u32 ram_off = phys & RAM_MASK;
 			for (u32 i = 0; i < 64; i++) {
 				u16 w = *(u16*)&mem_b[ram_off + i * 2];
 				EM_ASM({
@@ -5263,7 +5263,7 @@ extern "C" void EMSCRIPTEN_KEEPALIVE fly_dump_first_exc_trace() {
 	if (g_first_exc_epc != 0) {
 		u32 epc_phys = g_first_exc_epc & 0x1FFFFFFF;
 		if ((epc_phys >> 26) == 3) {
-			u32 epc_ram = (epc_phys - 32) & 0x00FFFFFF;  // 32 bytes before EPC
+			u32 epc_ram = (epc_phys - 32) & RAM_MASK;  // 32 bytes before EPC
 			EM_ASM({
 				window._flyLog.push('[FREEZE] RAM around EPC 0x'
 					+ ($0>>>0).toString(16)

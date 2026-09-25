@@ -1,0 +1,35 @@
+diff --git a/core/rend/gles/gles.cpp b/core/rend/gles/gles.cpp
+--- a/core/rend/gles/gles.cpp
++++ b/core/rend/gles/gles.cpp
+@@ -1213,6 +1213,9 @@
+ 		resetN2UniformCache(&it.second);
+ 	}
+ #ifndef GLES2
++	// WebGL 2 always enables fixed-index primitive restart and rejects toggling it.
++	// Avoid tracking this cap in GLsm, which would replay it every frame.
++#ifndef __EMSCRIPTEN__
+ 	if (gl.prim_restart_fixed_supported)
+ 		glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
+ #ifndef GLES
+@@ -1222,6 +1225,7 @@
+ 		glPrimitiveRestartIndex(-1);
+ 	}
+ #endif
++#endif
+ #endif
+ 	//setup render target first
+ 	if (is_rtt)
+diff --git a/core/rend/gl4/gles.cpp b/core/rend/gl4/gles.cpp
+--- a/core/rend/gl4/gles.cpp
++++ b/core/rend/gl4/gles.cpp
+@@ -851,7 +851,10 @@
+ 		resetN2UniformCache(&it.second);
+ 	gl4ShaderUniforms.PT_ALPHA=(PT_ALPHA_REF&0xFF)/255.0f;
+ 
++	// WebGL 2 keeps this state enabled and rejects glEnable for this cap.
++#ifndef __EMSCRIPTEN__
+ 	glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
++#endif
+ 
+ 	GLuint output_fbo;
+ 	//setup render target first

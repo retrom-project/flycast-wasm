@@ -4,6 +4,6 @@ import sys
 source = Path(sys.argv[1]).read_text()
 if "missing function:" in source:
     raise SystemExit("FLYCAST_UNRESOLVED_SYMBOL")
-for name in ("HEAPU8", "HEAPU32", "HEAP16", "EJS_Runtime"):
+for name in ("HEAPU8", "HEAPU32", "HEAP16", "EJS_Runtime", "retromWhenAsyncifyDone", "RETROM_FLYCAST_RANGE"):
     if name not in source:
         raise SystemExit("FLYCAST_RUNTIME_EXPORT_MISSING:" + name)

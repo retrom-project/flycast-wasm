@@ -1,0 +1,236 @@
+--- a/core/archive/archive.cpp
++++ b/core/archive/archive.cpp
+@@ -26,6 +26,12 @@
+ 
+ Archive *OpenArchive(const std::string& path)
+ {
++#ifdef __EMSCRIPTEN__
++	ZipArchive *rangeArchive = new ZipArchive();
++	if (rangeArchive->OpenRange(path.c_str()))
++		return rangeArchive;
++	delete rangeArchive;
++#endif
+ 	FILE *file = nullptr;
+ 	hostfs::FileInfo fileInfo;
+ 	try {
+--- a/core/archive/ZipArchive.h
++++ b/core/archive/ZipArchive.h
+@@ -32,6 +32,9 @@
+ 	ArchiveFile* OpenFileByCrc(u32 crc) override;
+ 
+ 	bool Open(FILE *file) override;
++#ifdef __EMSCRIPTEN__
++	bool OpenRange(const char *path);
++#endif
+ 	bool Open(const void *data, size_t size);
+ 
+ 	ArchiveFile *OpenFirstFile();
+--- a/core/archive/ZipArchive.cpp
++++ b/core/archive/ZipArchive.cpp
+@@ -19,6 +19,7 @@
+     along with reicast.  If not, see <https://www.gnu.org/licenses/>.
+  */
+ #include "ZipArchive.h"
++#include "retrom_flycast_range.h"
+ 
+ ZipArchive::~ZipArchive()
+ {
+@@ -39,6 +40,96 @@
+ 		zip_source_free(source);
+ 	return zip != nullptr;
+ }
++
++#ifdef __EMSCRIPTEN__
++struct RetromRangeSource
++{
++	zip_uint64_t size;
++	zip_uint64_t position = 0;
++	zip_error_t error;
++};
++
++static zip_int64_t retrom_range_source(void *userdata, void *data, zip_uint64_t length, zip_source_cmd_t command)
++{
++	RetromRangeSource *range = static_cast<RetromRangeSource *>(userdata);
++	switch (command)
++	{
++	case ZIP_SOURCE_SUPPORTS:
++		return ZIP_SOURCE_SUPPORTS_SEEKABLE;
++	case ZIP_SOURCE_OPEN:
++		range->position = 0;
++		return 0;
++	case ZIP_SOURCE_CLOSE:
++		return 0;
++	case ZIP_SOURCE_STAT:
++		if (length < sizeof(zip_stat_t))
++			break;
++		zip_stat_init(static_cast<zip_stat_t *>(data));
++		static_cast<zip_stat_t *>(data)->size = range->size;
++		static_cast<zip_stat_t *>(data)->valid = ZIP_STAT_SIZE;
++		return sizeof(zip_stat_t);
++	case ZIP_SOURCE_READ:
++	{
++		if (range->position >= range->size)
++			return 0;
++		zip_uint64_t count = range->size - range->position;
++		if (count > length) count = length;
++		if (count > 256 * 1024) count = 256 * 1024;
++		int received = retrom_flycast_range_read(static_cast<double>(range->position),
++			static_cast<unsigned>(count), data);
++		if (received != static_cast<int>(count))
++		{
++			zip_error_set(&range->error, ZIP_ER_READ, 0);
++			return -1;
++		}
++		range->position += count;
++		return received;
++	}
++	case ZIP_SOURCE_SEEK:
++	{
++		zip_int64_t position = zip_source_seek_compute_offset(range->position, range->size,
++			data, length, &range->error);
++		if (position < 0)
++			return -1;
++		range->position = static_cast<zip_uint64_t>(position);
++		return 0;
++	}
++	case ZIP_SOURCE_TELL:
++		return static_cast<zip_int64_t>(range->position);
++	case ZIP_SOURCE_ERROR:
++		return zip_error_to_data(&range->error, data, length);
++	case ZIP_SOURCE_FREE:
++		zip_error_fini(&range->error);
++		delete range;
++		return 0;
++	default:
++		break;
++	}
++	zip_error_set(&range->error, ZIP_ER_INVAL, 0);
++	return -1;
++}
++
++bool ZipArchive::OpenRange(const char *path)
++{
++	const double rangeSize = retrom_flycast_range_size(path);
++	if (rangeSize <= 0 || rangeSize > 2147483647.0)
++		return false;
++	RetromRangeSource *range = new RetromRangeSource{static_cast<zip_uint64_t>(rangeSize)};
++	zip_error_init(&range->error);
++	zip_error_t error;
++	zip_source_t *source = zip_source_function_create(retrom_range_source, range, &error);
++	if (source == nullptr)
++	{
++		zip_error_fini(&range->error);
++		delete range;
++		return false;
++	}
++	zip = zip_open_from_source(source, ZIP_RDONLY, nullptr);
++	if (zip == nullptr)
++		zip_source_free(source);
++	return zip != nullptr;
++}
++#endif
+ 
+ ArchiveFile* ZipArchive::OpenFile(const char* name)
+ {
+--- a/core/imgread/chd.cpp
++++ b/core/imgread/chd.cpp
+@@ -3,6 +3,68 @@
+ #include "oslib/storage.h"
+ #include "oslib/i18n.h"
+ #include <libchdr/chd.h>
++#include "../archive/retrom_flycast_range.h"
++
++#ifdef __EMSCRIPTEN__
++struct RetromCHDStream
++{
++	core_file file;
++	uint64_t size;
++	uint64_t position;
++};
++
++static uint64_t retrom_chd_size(core_file *file)
++{
++	return static_cast<RetromCHDStream *>(file->argp)->size;
++}
++
++static size_t retrom_chd_read(void *buffer, size_t elementSize, size_t count, core_file *file)
++{
++	RetromCHDStream *range = static_cast<RetromCHDStream *>(file->argp);
++	if (elementSize == 0 || count > SIZE_MAX / elementSize)
++		return 0;
++	uint64_t requested = elementSize * count;
++	if (requested > range->size - range->position)
++		requested = range->size - range->position;
++	uint64_t received = 0;
++	while (received < requested)
++	{
++		unsigned length = static_cast<unsigned>(std::min<uint64_t>(requested - received, 256 * 1024));
++		int got = retrom_flycast_range_read(static_cast<double>(range->position), length,
++			static_cast<unsigned char *>(buffer) + received);
++		if (got != static_cast<int>(length))
++			break;
++		range->position += length;
++		received += length;
++	}
++	return received / elementSize;
++}
++
++static int retrom_chd_seek(core_file *file, int64_t offset, int origin)
++{
++	RetromCHDStream *range = static_cast<RetromCHDStream *>(file->argp);
++	int64_t base = origin == SEEK_SET ? 0 : origin == SEEK_CUR ? range->position :
++		origin == SEEK_END ? range->size : -1;
++	if (base < 0 || offset < -base || offset > static_cast<int64_t>(range->size) - base)
++		return -1;
++	range->position = base + offset;
++	return 0;
++}
++
++static int retrom_chd_close(core_file *file)
++{
++	delete static_cast<RetromCHDStream *>(file->argp);
++	return 0;
++}
++
++static chd_error retrom_chd_open(uint64_t size, chd_file **chd)
++{
++	RetromCHDStream *range = new RetromCHDStream{};
++	range->size = size;
++	range->file = {range, retrom_chd_size, retrom_chd_read, retrom_chd_close, retrom_chd_seek};
++	return chd_open_core_file(&range->file, CHD_OPEN_READ, nullptr, chd);
++}
++#endif
+ 
+ struct CHDDisc : Disc
+ {
+@@ -111,14 +173,22 @@
+ 
+ void CHDDisc::tryOpen(const char* file)
+ {
+-	fp = hostfs::storage().openFile(file, "rb");
+-	if (fp == nullptr)
+-	{
+-		WARN_LOG(COMMON, "Cannot open file '%s' errno %d", file, errno);
+-		throw FlycastException(strprintf(i18n::T("Cannot open CHD file %s"), file));
+-	}
+-
+-	chd_error err = chd_open_file(fp, CHD_OPEN_READ, 0, &chd);
++	chd_error err;
++#ifdef __EMSCRIPTEN__
++	const double rangeSize = retrom_flycast_range_size(file);
++	if (rangeSize > 0 && rangeSize <= 2147483647.0)
++		err = retrom_chd_open(static_cast<uint64_t>(rangeSize), &chd);
++	else
++#endif
++	{
++		fp = hostfs::storage().openFile(file, "rb");
++		if (fp == nullptr)
++		{
++			WARN_LOG(COMMON, "Cannot open file '%s' errno %d", file, errno);
++			throw FlycastException(strprintf(i18n::T("Cannot open CHD file %s"), file));
++		}
++		err = chd_open_file(fp, CHD_OPEN_READ, 0, &chd);
++	}
+ 
+ 	if (err != CHDERR_NONE)
+ 		throw FlycastException(strprintf(i18n::T("Invalid CHD file %s"), file));

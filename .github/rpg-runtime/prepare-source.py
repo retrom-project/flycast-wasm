@@ -48,13 +48,14 @@ for name, (repository, commit) in PINS.items():
     # Upstream tracks CRLF; the published patch uses LF.
     audio = source / "shell/libretro/audiostream.cpp"
     audio.write_bytes(audio.read_bytes().replace(b"\r\n", b"\n"))
-    patch = ROOT / "patches/wasm-jit-phase1-modified.patch"
-    git(source, "apply", "--check", str(patch))
-    git(source, "apply", str(patch))
+    for patch_name in ("wasm-jit-phase1-modified.patch", "flycast-range.patch", "flycast-webgl.patch"):
+        patch = ROOT / "patches" / patch_name
+        git(source, "apply", "--check", str(patch))
+        git(source, "apply", str(patch))
     (source / "core/rec-wasm").mkdir(exist_ok=True)
     for path in (ROOT / "patches").iterdir():
         if path.suffix in {".cpp", ".h"}:
-            target = source / "core/rec-wasm" / path.name
+            target = source / ("core/archive" if path.name == "retrom_flycast_range.h" else "core/rec-wasm") / path.name
             if not target.exists() or target.read_bytes() != path.read_bytes():
                 shutil.copyfile(path, target)
 

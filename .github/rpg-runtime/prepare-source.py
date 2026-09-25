@@ -48,7 +48,7 @@ for name, (repository, commit) in PINS.items():
     # Upstream tracks CRLF; the published patch uses LF.
     audio = source / "shell/libretro/audiostream.cpp"
     audio.write_bytes(audio.read_bytes().replace(b"\r\n", b"\n"))
-    for patch_name in ("wasm-jit-phase1-modified.patch", "flycast-range.patch"):
+    for patch_name in ("wasm-jit-phase1-modified.patch", "flycast-range.patch", "flycast-webgl.patch"):
         patch = ROOT / "patches" / patch_name
         git(source, "apply", "--check", str(patch))
         git(source, "apply", str(patch))

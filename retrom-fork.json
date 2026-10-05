@@ -17,6 +17,7 @@
   "releaseAssets": [
     "flycast-wasm.data",
     "flycast.json",
+    "flycast-rom-requirements.json",
     "LICENSE",
     "rpg-runtime-release.json"
   ]

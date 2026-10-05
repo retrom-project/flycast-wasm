@@ -14,7 +14,7 @@ The build materializes exact inputs in the ignored `.cache/` directory:
 | EmulatorJS/RetroArch | `6dd4353937ef48b6ec0bfbdbb15d1c5992d86927` |
 | emscripten/emsdk | `sha256:90b757eb11fa9a0e3ce4d2d9f76d932a56018e4accc37b5a28b2783751e60eb7` |
 
-Prerequisites: Git, Docker, Python 3, 7-Zip, and a C compiler for the bridge test.
+Prerequisites: Git, Docker, Python 3, 7-Zip, a C compiler for the bridge test, and g++ for the ROM table exporter.
 Run from a non-root PFB checkout:
 
 ```bash
@@ -26,7 +26,7 @@ make pfb-core-build PFB=<name> CORE=flycast
 ```
 
 The underlying interface is `.github/rpg-runtime/build-candidate.sh <absolute-empty-output-directory>`.
-It produces `flycast-wasm.data`, `flycast.json`, `LICENSE`, and a closed,
+It produces `flycast-wasm.data`, `flycast.json`, `flycast-rom-requirements.json`, `LICENSE`, and a closed,
 SHA-256-verified `retrom-core-candidate.json`. Generated inputs are disposable;
 do not edit `.cache/flycast` or `.cache/retroarch` manually. Change the fork's
 tracked patches/build scripts instead. The package does not contain a BIOS or game.
@@ -65,7 +65,17 @@ reproducibility run. No formal release is created by the candidate wrapper.
 validated PR, create an annotated `retrom-core-1.0-rN` tag on its maintenance
 commit. `retrom-release.yml` verifies the tag and ancestry, rebuilds from fixed
 inputs, validates the clean candidate's identity and bytes with `release.py`,
-and publishes the three payload files plus `rpg-runtime-release.json`.
+and publishes the four payload files plus `rpg-runtime-release.json`.
 The release metadata records repository, tag, commit, ABI and exact file hashes.
 Run `python3 -B -m unittest discover -s .github/rpg-runtime -p 'test_*.py'`
 to verify that dirty sources, wrong identities and altered bytes are rejected.
+
+The ROM requirements artifact is compiled from the same prepared `Games` table
+as the core. It identifies cartridge versus GD-ROM media, hardware family,
+parent name and each file's size/CRC and optional status. Internal Copy blobs
+are not files; Eeprom defaults are optional, while EepromBE16 remains required.
+Duplicate machine names follow the core's first-match lookup. It binds the
+packaged core SHA-256, pinned source commit, table digest and exporter digest.
+Hosts can reject unsupported GD-ROM/PIC-only and incomplete split sets without
+reading C++ source or searching global game directories. Publishing this catalog
+does not add GD-ROM or external Parent delivery support.

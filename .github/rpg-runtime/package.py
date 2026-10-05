@@ -29,5 +29,7 @@ with tempfile.TemporaryDirectory(dir=root / ".cache", prefix="package-") as temp
                     str(output / "flycast-wasm.data"), *sorted(p.name for p in stage.iterdir())], cwd=stage, check=True)
 (output / "LICENSE").write_bytes(notices)
 (output / "flycast.json").write_text(json.dumps({"core": "flycast", "buildStart": "retrom-flycast-1.0", "options": {"defaultWebGL2": True}}) + "\n")
+subprocess.run([sys.executable, str(root / ".github/rpg-runtime/export-rom-requirements.py"),
+                str(output / "flycast-rom-requirements.json"), str(output / "flycast-wasm.data")], check=True)
 subprocess.run([sys.executable, str(root / ".github/rpg-runtime/candidate_descriptor.py"),
                 "finalize", str(output), "--core-id", "flycast"], check=True)

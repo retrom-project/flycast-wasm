@@ -2,3 +2,4 @@
 out/
 source/
 EJS-RetroArch/
+__pycache__/

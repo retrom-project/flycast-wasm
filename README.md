@@ -155,3 +155,12 @@ gets reviewed first.
 ## License
 
 [GPLv2](LICENSE), inherited from Flycast. Fork freely. Keep it open.
+
+### Retrom ROM requirements
+
+The candidate and release preparation applies `flycast-rom-crc.patch` to the
+pinned upstream table before compilation and requirements export. It corrects
+`18wheelr` chip `mpr-22180.ic17s` to CRC32 `744c3a40`; its neighboring chip keeps
+`6915c4e6`. The resulting core and `flycast-rom-requirements.json` therefore use
+the same corrected table. No ROM bytes or host-specific admission overrides
+are included.

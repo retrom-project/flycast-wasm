@@ -1,0 +1,81 @@
+--- a/shell/libretro/libretro.cpp
++++ b/shell/libretro/libretro.cpp
+@@ -255,6 +255,11 @@
+ static void updateVibration(u32 port, float power, float inclination, u32 durationMs);
+ 
+ static std::string game_data;
++static int retrom_content_result = 0;
++static bool retrom_renderer_ready = false;
++extern "C" int retrom_content_load_result() {
++	return retrom_content_result < 0 ? -1 : retrom_content_result == 1 && retrom_renderer_ready ? 1 : 0;
++}
+ static char g_base_name[128];
+ static char game_dir[1024];
+ char game_dir_no_slash[1024];
+@@ -924,6 +929,7 @@
+ 	if (!first_startup && previous_renderer != config::RendererType) {
+ 		rend_term_renderer();
+ 		rend_init_renderer();
++	retrom_renderer_ready = true;
+ 	}
+ 
+ #if defined(HAVE_OIT) || defined(HAVE_VULKAN) || defined(HAVE_D3D11)
+@@ -1846,6 +1852,7 @@
+ #endif
+ 		}
+ 	} catch (const FlycastException& e) {
++		retrom_content_result = -1;
+ 		ERROR_LOG(COMMON, "%s", e.what());
+ 		os_notify(e.what(), 5000);
+ 		environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+@@ -1930,7 +1937,9 @@
+ {
+ 	try {
+ 		emu.loadGame(game_data.c_str());
++		retrom_content_result = game_data.empty() ? -1 : 1;
+ 	} catch (const FlycastException& e) {
++		retrom_content_result = -1;
+ 		ERROR_LOG(BOOT, "%s", e.what());
+ 		os_notify(e.what(), 5000);
+         retro_unload_game();
+@@ -2007,6 +2016,7 @@
+ 	rend_term_renderer();
+ 	theGLContext.init();
+ 	rend_init_renderer();
++	retrom_renderer_ready = true;
+ #ifdef HAVE_OIT
+ 	if (!perPixelChecked)
+ 		check_per_pixel_opt();
+@@ -2597,6 +2607,7 @@
+ 		return;
+ 	rend_term_renderer();
+ 	rend_init_renderer();
++	retrom_renderer_ready = true;
+ 	if (!perPixelChecked)
+ 		check_per_pixel_opt();
+ }
+@@ -2735,6 +2746,7 @@
+ 	else if (config::RendererType != RenderType::DirectX11_OIT)
+ 		config::RendererType = RenderType::DirectX11;
+ 	rend_init_renderer();
++	retrom_renderer_ready = true;
+ 	if (!perPixelChecked)
+ 		check_per_pixel_opt();
+ }
+@@ -2771,6 +2783,8 @@
+ // Loading/unloading games
+ bool retro_load_game(const struct retro_game_info *game)
+ {
++	retrom_content_result = -1;
++	retrom_renderer_ready = false;
+ #if defined(IOS)
+ 	bool can_jit;
+ 	if (environ_cb(RETRO_ENVIRONMENT_GET_JIT_CAPABLE, &can_jit) && !can_jit) {
+@@ -4296,6 +4310,7 @@
+ 		emu.insertGdrom(disk_paths[index]);
+ 		return true;
+ 	} catch (const FlycastException& e) {
++		retrom_content_result = -1;
+ 		ERROR_LOG(GDROM, "%s", e.what());
+ 		return false;
+ 	}

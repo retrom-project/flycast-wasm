@@ -14,7 +14,7 @@ The build materializes exact inputs in the ignored `.cache/` directory:
 | EmulatorJS/RetroArch | `6dd4353937ef48b6ec0bfbdbb15d1c5992d86927` |
 | emscripten/emsdk | `sha256:90b757eb11fa9a0e3ce4d2d9f76d932a56018e4accc37b5a28b2783751e60eb7` |
 
-Prerequisites: Git, Docker, Python 3, 7-Zip, a C compiler for the bridge test, and g++ for the ROM table exporter.
+Prerequisites: Git, Docker, Python 3, 7-Zip, C and C++ compilers for bridge/seekable FILE tests, and g++ for the ROM table exporter.
 Run from a non-root PFB checkout:
 
 ```bash
@@ -42,11 +42,22 @@ created before this setting must be cleaned before a reproducibility comparison.
 RetroArch's embedded `GIT_VERSION` is the complete pinned 40-character commit;
 it must not depend on Git's repository-size-dependent automatic abbreviation.
 
-Retrom uses this core for single-file Dreamcast CHD and NAOMI, NAOMI2, and
+Retrom uses this core for single-file Dreamcast CHD and CDI and NAOMI, NAOMI2, and
 Atomiswave ZIP cartridges, with WebGL2 and no pthreads. The native CHD and ZIP
 readers use the same asynchronous, bounded Range bridge supplied by the runtime;
-neither format requires a complete game download before native startup. ZIP
+none of these formats requires a complete game download before native startup. CDI
+metadata and tracks use separate read-only seekable FILE cursors over the same
+bounded bridge (each read is at most 256 KiB). The runtime preserves the native
+CDI filename and disables EmulatorJS auto-CUE generation. CDI uses the core's
+HLE bootstrap: the real-BIOS MIL-CD path traps in the WASM SH4 executor for the
+validated samples. CHD and arcade retain their existing BIOS selection. Cached
+Range reads return synchronously; cache misses suspend through Asyncify.
+The build exercises independent cursors, EOF, bounds and failed reads both
+with native stdio and with the actual Emscripten/Asyncify stdio implementation. ZIP
 cartridges may still read most archive members while the arcade machine boots.
+The exported `retrom_content_load_result` reports a failed native content load
+and waits for renderer initialization before acceptance. This receipt is a load
+barrier; actual gameplay/input/checkpoint/restore still require product testing.
 The frontend uses `/` as its content/system directory. Dreamcast needs
 `/dc/dc_boot.bin` and `/dc/dc_flash.bin`; the arcade targets need their matching
 BIOS ZIP in `/dc/`. Flash contains mutable console settings. Windows CE/MMU

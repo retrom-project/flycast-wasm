@@ -1,0 +1,23 @@
+--- a/core/oslib/storage.cpp
++++ b/core/oslib/storage.cpp
+@@ -17,6 +17,9 @@
+     along with Flycast.  If not, see <https://www.gnu.org/licenses/>.
+ */
+ #include "storage.h"
++#ifdef __EMSCRIPTEN__
++#include "../archive/retrom_seekable_file.h"
++#endif
+ #include "directory.h"
+ #include "stdclass.h"
+ #include "nowide/stackstring.hpp"
+@@ -359,6 +362,10 @@
+ 
+ FILE *AllStorage::openFile(const std::string& path, const std::string& mode)
+ {
++#ifdef __EMSCRIPTEN__
++	if ((mode == "r" || mode == "rb") && retrom_flycast_range_size(path.c_str()) > 0)
++		return retrom_open_seekable_file(path.c_str());
++#endif
+ 	if (customStorage().isKnownPath(path))
+ 		return customStorage().openFile(path, mode);
+ 	else

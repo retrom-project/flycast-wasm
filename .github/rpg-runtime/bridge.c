@@ -18,13 +18,18 @@ EM_JS(int, retrom_flycast_range_read_js, (double offset, unsigned length, void *
         try {
             bridge.begin();
             started = true;
-            Promise.resolve(bridge.read(offset, length)).then(function(bytes) {
+            const complete = function(bytes) {
                 try {
                     if (!bytes || bytes.length !== length) { wakeUp(-1); return; }
                     HEAPU8.set(bytes, destination);
                     wakeUp(bytes.length);
                 } finally { bridge.end(); }
-            }, function(error) {
+            };
+            const bytes = bridge.read(offset, length);
+            // Cached reads must wake synchronously. Suspending a guest MMIO read
+            // would rewind through dynamically compiled, non-Asyncify SH4 code.
+            if (bytes && typeof bytes.then !== 'function') complete(bytes);
+            else Promise.resolve(bytes).then(complete, function(error) {
                 try { wakeUp(-1); } finally { bridge.end(); bridge.fail(error); }
             });
         } catch (error) {

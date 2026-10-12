@@ -49,7 +49,7 @@ for name, (repository, commit) in PINS.items():
     audio = source / "shell/libretro/audiostream.cpp"
     audio.write_bytes(audio.read_bytes().replace(b"\r\n", b"\n"))
     for patch_name in ("wasm-jit-phase1-modified.patch", "flycast-range.patch", "flycast-webgl.patch", "flycast-rom-crc.patch",
-                       "flycast-seekable-file.patch", "flycast-content-result.patch"):
+                       "flycast-seekable-file.patch", "flycast-gdrom-startup.patch", "flycast-content-result.patch"):
         patch = ROOT / "patches" / patch_name
         git(source, "apply", "--check", str(patch))
         git(source, "apply", str(patch))

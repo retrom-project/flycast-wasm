@@ -5,12 +5,20 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 
-EM_JS(double, retrom_flycast_range_size_js, (const char *path), {
+EM_JS(int, retrom_flycast_range_open_js, (const char *path), {
     const bridge = globalThis.RETROM_FLYCAST_RANGE;
-    return bridge && UTF8ToString(path).split('/').pop() === bridge.filename ? bridge.sizeBytes : -1;
+    return bridge ? bridge.open(UTF8ToString(path)) : 0;
+});
+EM_JS(double, retrom_flycast_range_size_js, (int handle), {
+    const bridge = globalThis.RETROM_FLYCAST_RANGE;
+    return bridge ? bridge.size(handle) : -1;
+});
+EM_JS(void, retrom_flycast_range_close_js, (int handle), {
+    const bridge = globalThis.RETROM_FLYCAST_RANGE;
+    if (bridge) bridge.close(handle);
 });
 
-EM_JS(int, retrom_flycast_range_read_js, (double offset, unsigned length, void *destination), {
+EM_JS(int, retrom_flycast_range_read_js, (int handle, double offset, unsigned length, void *destination), {
     return Asyncify.handleSleep(function(wakeUp) {
         const bridge = globalThis.RETROM_FLYCAST_RANGE;
         if (!bridge || !length || length > 256 * 1024) { wakeUp(-1); return; }
@@ -25,9 +33,8 @@ EM_JS(int, retrom_flycast_range_read_js, (double offset, unsigned length, void *
                     wakeUp(bytes.length);
                 } finally { bridge.end(); }
             };
-            const bytes = bridge.read(offset, length);
-            // Cached reads must wake synchronously. Suspending a guest MMIO read
-            // would rewind through dynamically compiled, non-Asyncify SH4 code.
+            const bytes = bridge.read(handle, offset, length);
+            // Cache hits must remain synchronous across dynamically compiled SH4 code.
             if (bytes && typeof bytes.then !== 'function') complete(bytes);
             else Promise.resolve(bytes).then(complete, function(error) {
                 try { wakeUp(-1); } finally { bridge.end(); bridge.fail(error); }
@@ -40,13 +47,13 @@ EM_JS(int, retrom_flycast_range_read_js, (double offset, unsigned length, void *
     });
 });
 
-double retrom_flycast_range_size(const char *path) {
-    return retrom_flycast_range_size_js(path);
+int retrom_flycast_range_open(const char *path) { return retrom_flycast_range_open_js(path); }
+double retrom_flycast_range_size(int handle) { return retrom_flycast_range_size_js(handle); }
+void retrom_flycast_range_close(int handle) { retrom_flycast_range_close_js(handle); }
+int retrom_flycast_range_read(int handle, double offset, unsigned length, void *destination) {
+    return retrom_flycast_range_read_js(handle, offset, length, destination);
 }
 
-int retrom_flycast_range_read(double offset, unsigned length, void *destination) {
-    return retrom_flycast_range_read_js(offset, length, destination);
-}
 #endif
 
 extern const unsigned char *__real_glGetString(unsigned int name);

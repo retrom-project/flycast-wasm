@@ -4,8 +4,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-double retrom_flycast_range_size(const char *path);
-int retrom_flycast_range_read(double offset, unsigned length, void *destination);
+int retrom_flycast_range_open(const char *path);
+double retrom_flycast_range_size(int handle);
+int retrom_flycast_range_read(int handle, double offset, unsigned length, void *destination);
+void retrom_flycast_range_close(int handle);
 #ifdef __cplusplus
 }
 #endif

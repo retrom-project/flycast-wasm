@@ -1,0 +1,16 @@
+--- a/core/hw/naomi/gdcartridge.cpp
++++ b/core/hw/naomi/gdcartridge.cpp
+@@ -607,6 +607,13 @@
+ 
+ 		if (!dimm_data)
+ 			throw NaomiCartException(i18n::Ts("Naomi GDROM: Could not find the file to decrypt."));
++#ifdef __EMSCRIPTEN__
++		// The generated SH4 JIT blocks cannot unwind an Asyncify cache miss.
++		// Populate the native DIMM buffer before starting the guest CPU. Read
++		// the required sectors through the range bridge, without a second
++		// complete compressed-disc copy in the JavaScript/native filesystem.
++		loadSegments(0, dimm_data_size);
++#endif
+ 	}
+ }
+ 

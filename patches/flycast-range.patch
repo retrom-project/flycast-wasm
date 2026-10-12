@@ -35,7 +35,7 @@
  
  ZipArchive::~ZipArchive()
  {
-@@ -39,6 +40,96 @@
+@@ -39,6 +40,107 @@
  		zip_source_free(source);
  	return zip != nullptr;
  }
@@ -43,6 +43,7 @@
 +#ifdef __EMSCRIPTEN__
 +struct RetromRangeSource
 +{
++	int handle;
 +	zip_uint64_t size;
 +	zip_uint64_t position = 0;
 +	zip_error_t error;
@@ -74,7 +75,7 @@
 +		zip_uint64_t count = range->size - range->position;
 +		if (count > length) count = length;
 +		if (count > 256 * 1024) count = 256 * 1024;
-+		int received = retrom_flycast_range_read(static_cast<double>(range->position),
++		int received = retrom_flycast_range_read(range->handle, static_cast<double>(range->position),
 +			static_cast<unsigned>(count), data);
 +		if (received != static_cast<int>(count))
 +		{
@@ -98,6 +99,7 @@
 +	case ZIP_SOURCE_ERROR:
 +		return zip_error_to_data(&range->error, data, length);
 +	case ZIP_SOURCE_FREE:
++		retrom_flycast_range_close(range->handle);
 +		zip_error_fini(&range->error);
 +		delete range;
 +		return 0;
@@ -110,15 +112,24 @@
 +
 +bool ZipArchive::OpenRange(const char *path)
 +{
-+	const double rangeSize = retrom_flycast_range_size(path);
-+	if (rangeSize <= 0 || rangeSize > 2147483647.0)
++	int handle = retrom_flycast_range_open(path);
++	if (handle <= 0)
++		handle = retrom_flycast_range_open((std::string(path) + ".zip").c_str());
++	if (handle <= 0)
 +		return false;
-+	RetromRangeSource *range = new RetromRangeSource{static_cast<zip_uint64_t>(rangeSize)};
++	const double rangeSize = retrom_flycast_range_size(handle);
++	if (rangeSize <= 0 || rangeSize > 2147483647.0)
++	{
++		retrom_flycast_range_close(handle);
++		return false;
++	}
++	RetromRangeSource *range = new RetromRangeSource{handle, static_cast<zip_uint64_t>(rangeSize)};
 +	zip_error_init(&range->error);
 +	zip_error_t error;
 +	zip_source_t *source = zip_source_function_create(retrom_range_source, range, &error);
 +	if (source == nullptr)
 +	{
++		retrom_flycast_range_close(handle);
 +		zip_error_fini(&range->error);
 +		delete range;
 +		return false;
@@ -134,7 +145,7 @@
  {
 --- a/core/imgread/chd.cpp
 +++ b/core/imgread/chd.cpp
-@@ -3,6 +3,68 @@
+@@ -3,6 +3,72 @@
  #include "oslib/storage.h"
  #include "oslib/i18n.h"
  #include <libchdr/chd.h>
@@ -144,6 +155,7 @@
 +struct RetromCHDStream
 +{
 +	core_file file;
++	int handle;
 +	uint64_t size;
 +	uint64_t position;
 +};
@@ -165,7 +177,7 @@
 +	while (received < requested)
 +	{
 +		unsigned length = static_cast<unsigned>(std::min<uint64_t>(requested - received, 256 * 1024));
-+		int got = retrom_flycast_range_read(static_cast<double>(range->position), length,
++		int got = retrom_flycast_range_read(range->handle, static_cast<double>(range->position), length,
 +			static_cast<unsigned char *>(buffer) + received);
 +		if (got != static_cast<int>(length))
 +			break;
@@ -188,13 +200,16 @@
 +
 +static int retrom_chd_close(core_file *file)
 +{
-+	delete static_cast<RetromCHDStream *>(file->argp);
++	auto *range = static_cast<RetromCHDStream *>(file->argp);
++	retrom_flycast_range_close(range->handle);
++	delete range;
 +	return 0;
 +}
 +
-+static chd_error retrom_chd_open(uint64_t size, chd_file **chd)
++static chd_error retrom_chd_open(int handle, uint64_t size, chd_file **chd)
 +{
 +	RetromCHDStream *range = new RetromCHDStream{};
++	range->handle = handle;
 +	range->size = size;
 +	range->file = {range, retrom_chd_size, retrom_chd_read, retrom_chd_close, retrom_chd_seek};
 +	return chd_open_core_file(&range->file, CHD_OPEN_READ, nullptr, chd);
@@ -203,7 +218,7 @@
  
  struct CHDDisc : Disc
  {
-@@ -111,14 +173,22 @@
+@@ -111,14 +177,26 @@
  
  void CHDDisc::tryOpen(const char* file)
  {
@@ -217,12 +232,16 @@
 -	chd_error err = chd_open_file(fp, CHD_OPEN_READ, 0, &chd);
 +	chd_error err;
 +#ifdef __EMSCRIPTEN__
-+	const double rangeSize = retrom_flycast_range_size(file);
++	const int rangeHandle = retrom_flycast_range_open(file);
++	const double rangeSize = rangeHandle > 0 ? retrom_flycast_range_size(rangeHandle) : -1;
 +	if (rangeSize > 0 && rangeSize <= 2147483647.0)
-+		err = retrom_chd_open(static_cast<uint64_t>(rangeSize), &chd);
++		err = retrom_chd_open(rangeHandle, static_cast<uint64_t>(rangeSize), &chd);
 +	else
 +#endif
 +	{
++#ifdef __EMSCRIPTEN__
++		if (rangeHandle > 0) retrom_flycast_range_close(rangeHandle);
++#endif
 +		fp = hostfs::storage().openFile(file, "rb");
 +		if (fp == nullptr)
 +		{

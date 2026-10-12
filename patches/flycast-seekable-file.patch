@@ -10,13 +10,16 @@
  #include "directory.h"
  #include "stdclass.h"
  #include "nowide/stackstring.hpp"
-@@ -359,6 +362,10 @@
+@@ -359,6 +362,13 @@
  
  FILE *AllStorage::openFile(const std::string& path, const std::string& mode)
  {
 +#ifdef __EMSCRIPTEN__
-+	if ((mode == "r" || mode == "rb") && retrom_flycast_range_size(path.c_str()) > 0)
-+		return retrom_open_seekable_file(path.c_str());
++	if (mode == "r" || mode == "rb")
++	{
++		FILE *range = retrom_open_seekable_file(path.c_str());
++		if (range != nullptr) return range;
++	}
 +#endif
  	if (customStorage().isKnownPath(path))
  		return customStorage().openFile(path, mode);
